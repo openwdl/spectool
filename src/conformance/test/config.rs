@@ -42,20 +42,16 @@ impl std::fmt::Display for Capability {
 /// The expected return code(s) for a conformance test.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
+#[derive(Default)]
 pub enum ReturnCode {
     /// Any return code is allowed.
     #[serde(deserialize_with = "deserialize_any")]
+    #[default]
     Any,
     /// A single expected return code.
     Single(i32),
     /// Multiple possible return codes.
     Multiple(Vec<i32>),
-}
-
-impl Default for ReturnCode {
-    fn default() -> Self {
-        ReturnCode::Any
-    }
 }
 
 /// Custom deserializer for the "*" string to represent Any.
@@ -153,8 +149,8 @@ mod tests {
         let config: Config = serde_json::from_str(json).unwrap();
 
         assert_eq!(config.target(), None);
-        assert_eq!(config.ignore(), false);
-        assert_eq!(config.fail(), false);
+        assert!(!config.ignore());
+        assert!(!config.fail());
         assert_eq!(config.return_code(), &ReturnCode::Any);
         assert_eq!(config.exclude_outputs(), &[] as &[String]);
         assert_eq!(config.capabilities(), &[] as &[Capability]);
@@ -186,7 +182,10 @@ mod tests {
     fn capabilities() {
         let json = r#"{"capabilities": ["gpu", "memory"]}"#;
         let config: Config = serde_json::from_str(json).unwrap();
-        assert_eq!(config.capabilities(), &[Capability::Gpu, Capability::Memory]);
+        assert_eq!(
+            config.capabilities(),
+            &[Capability::Gpu, Capability::Memory]
+        );
     }
 
     #[test]
@@ -203,8 +202,8 @@ mod tests {
         let config: Config = serde_json::from_str(json).unwrap();
 
         assert_eq!(config.target(), Some("my_task"));
-        assert_eq!(config.ignore(), true);
-        assert_eq!(config.fail(), true);
+        assert!(config.ignore());
+        assert!(config.fail());
         assert_eq!(config.return_code(), &ReturnCode::Single(1));
         assert_eq!(config.exclude_outputs(), &["timestamp"]);
         assert_eq!(config.capabilities(), &[Capability::Cpu, Capability::Gpu]);

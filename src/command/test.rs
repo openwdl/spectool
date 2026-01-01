@@ -182,17 +182,35 @@ pub fn main(mut args: Args) -> Result<()> {
     for test in runner.tests() {
         // (1) Check if test should be filtered by include/exclude
         let test_name = test.file_name().trim_end_matches(".wdl");
-        if !args.include.is_empty() && !args.include.iter().any(|pattern| test_name.contains(pattern.as_str())) {
+        if !args.include.is_empty()
+            && !args
+                .include
+                .iter()
+                .any(|pattern| test_name.contains(pattern.as_str()))
+        {
             continue;
         }
-        if !args.exclude.is_empty() && args.exclude.iter().any(|pattern| test_name.contains(pattern.as_str())) {
+        if !args.exclude.is_empty()
+            && args
+                .exclude
+                .iter()
+                .any(|pattern| test_name.contains(pattern.as_str()))
+        {
             continue;
         }
 
         // (2) Check if test should be ignored
         if test.config().ignore() {
-            print_result(test.file_name(), "SKIP", Some("test marked with `ignore: true`"), None);
-            results.push((test.file_name().to_string(), TestResult::Skipped(SkipReason::Ignored)));
+            print_result(
+                test.file_name(),
+                "SKIP",
+                Some("test marked with `ignore: true`"),
+                None,
+            );
+            results.push((
+                test.file_name().to_string(),
+                TestResult::Skipped(SkipReason::Ignored),
+            ));
             continue;
         }
 
@@ -208,10 +226,7 @@ pub fn main(mut args: Args) -> Result<()> {
         if !missing_capabilities.is_empty() {
             let reason = SkipReason::MissingCapabilities(missing_capabilities);
             print_result(test.file_name(), "SKIP", Some(&reason.to_string()), None);
-            results.push((
-                test.file_name().to_string(),
-                TestResult::Skipped(reason),
-            ));
+            results.push((test.file_name().to_string(), TestResult::Skipped(reason)));
             continue;
         }
 
@@ -253,7 +268,14 @@ pub fn main(mut args: Args) -> Result<()> {
 
         // (6) Execute the test and evaluate the result
         let start_time = std::time::Instant::now();
-        let result = execute_and_evaluate_test(test, &command, runner.root_dir(), &workdir, args.redirect_stdout, args.output_selector.as_deref());
+        let result = execute_and_evaluate_test(
+            test,
+            &command,
+            runner.root_dir(),
+            &workdir,
+            args.redirect_stdout,
+            args.output_selector.as_deref(),
+        );
         let elapsed = start_time.elapsed();
         total_elapsed += elapsed;
 
@@ -261,10 +283,20 @@ pub fn main(mut args: Args) -> Result<()> {
         match &result {
             TestResult::Passed => print_result(test.file_name(), "PASS", None, Some(elapsed)),
             TestResult::Failed(reason) => {
-                print_result(test.file_name(), "FAIL", Some(&reason.to_string()), Some(elapsed));
+                print_result(
+                    test.file_name(),
+                    "FAIL",
+                    Some(&reason.to_string()),
+                    Some(elapsed),
+                );
             }
             TestResult::Skipped(reason) => {
-                print_result(test.file_name(), "SKIP", Some(&reason.to_string()), Some(elapsed));
+                print_result(
+                    test.file_name(),
+                    "SKIP",
+                    Some(&reason.to_string()),
+                    Some(elapsed),
+                );
             }
         }
 
@@ -307,14 +339,12 @@ pub fn main(mut args: Args) -> Result<()> {
 /// Creates an `input.json` file.
 fn create_input_json(test: &Test, work_dir: &Path) -> Result<PathBuf> {
     let input = match test.input() {
-        Some(value) => serde_json::to_string_pretty(value)
-            .context("serializing input file")?,
+        Some(value) => serde_json::to_string_pretty(value).context("serializing input file")?,
         None => Default::default(),
     };
 
     let input_file_path = work_dir.join("inputs.json");
-    std::fs::write(&input_file_path, input)
-        .context("writing `inputs.json` file")?;
+    std::fs::write(&input_file_path, input).context("writing `inputs.json` file")?;
 
     Ok(input_file_path)
 }
@@ -440,7 +470,12 @@ fn execute_and_evaluate_test(
 }
 
 /// Prints a test result in the format: <test_name>...RESULT [time]
-fn print_result(test_name: &str, status: &str, details: Option<&str>, elapsed: Option<std::time::Duration>) {
+fn print_result(
+    test_name: &str,
+    status: &str,
+    details: Option<&str>,
+    elapsed: Option<std::time::Duration>,
+) {
     const TOTAL_WIDTH: usize = 50;
 
     let dots_len = TOTAL_WIDTH.saturating_sub(test_name.len());
@@ -453,28 +488,46 @@ fn print_result(test_name: &str, status: &str, details: Option<&str>, elapsed: O
         _ => ("", ""),
     };
 
-    let time_str = elapsed.map(|d| format!(" [{:.2}s]", d.as_secs_f64())).unwrap_or_default();
+    let time_str = elapsed
+        .map(|d| format!(" [{:.2}s]", d.as_secs_f64()))
+        .unwrap_or_default();
 
     if let Some(details_str) = details {
-        println!("{}{}{}{}{}{} ({})", test_name, dots, color_code, status, reset_code, time_str, details_str);
+        println!(
+            "{}{}{}{}{}{} ({})",
+            test_name, dots, color_code, status, reset_code, time_str, details_str
+        );
     } else {
-        println!("{}{}{}{}{}{}", test_name, dots, color_code, status, reset_code, time_str);
+        println!(
+            "{}{}{}{}{}{}",
+            test_name, dots, color_code, status, reset_code, time_str
+        );
     }
 }
 
 /// Applies a `jq` selector to a JSON value.
-fn apply_selector(selector: &str, input: &serde_json::Value) -> Result<serde_json::Value, FailureReason> {
-    use jaq_core::{data, unwrap_valr, Compiler, Ctx, Vars};
+fn apply_selector(
+    selector: &str,
+    input: &serde_json::Value,
+) -> Result<serde_json::Value, FailureReason> {
     use jaq_core::load::{Arena, File, Loader};
+    use jaq_core::{data, unwrap_valr, Compiler, Ctx, Vars};
     use jaq_json::Val;
 
-    let program = File { code: selector, path: () };
+    let program = File {
+        code: selector,
+        path: (),
+    };
     let loader = Loader::new(jaq_std::defs().chain(jaq_json::defs()));
     let arena = Arena::default();
 
     // Parse the selector
     let modules = loader.load(&arena, program).map_err(|errs| {
-        let error_msg = errs.into_iter().map(|(file, err)| format!("{}: {:?}", file.code, err)).collect::<Vec<_>>().join("; ");
+        let error_msg = errs
+            .into_iter()
+            .map(|(file, err)| format!("{}: {:?}", file.code, err))
+            .collect::<Vec<_>>()
+            .join("; ");
         FailureReason::SelectorError {
             selector: selector.to_string(),
             details: error_msg,
@@ -486,10 +539,18 @@ fn apply_selector(selector: &str, input: &serde_json::Value) -> Result<serde_jso
         .with_funs(jaq_std::funs().chain(jaq_json::funs()))
         .compile(modules)
         .map_err(|errs| {
-            let error_msg = errs.into_iter().map(|(file, err)| {
-                let err_str = err.into_iter().map(|(name, _)| name).collect::<Vec<_>>().join(", ");
-                format!("{}: undefined: {}", file.code, err_str)
-            }).collect::<Vec<_>>().join("; ");
+            let error_msg = errs
+                .into_iter()
+                .map(|(file, err)| {
+                    let err_str = err
+                        .into_iter()
+                        .map(|(name, _)| name)
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("{}: undefined: {}", file.code, err_str)
+                })
+                .collect::<Vec<_>>()
+                .join("; ");
             FailureReason::SelectorError {
                 selector: selector.to_string(),
                 details: error_msg,
@@ -498,9 +559,11 @@ fn apply_selector(selector: &str, input: &serde_json::Value) -> Result<serde_jso
 
     // Convert `serde_json::Value` to `jaq` `Val` using JSON string roundtrip
     let json_str = input.to_string();
-    let jaq_input = jaq_json::read::parse_single(json_str.as_bytes()).map_err(|e| FailureReason::SelectorError {
-        selector: selector.to_string(),
-        details: format!("failed to parse input as JSON: {}", e),
+    let jaq_input = jaq_json::read::parse_single(json_str.as_bytes()).map_err(|e| {
+        FailureReason::SelectorError {
+            selector: selector.to_string(),
+            details: format!("failed to parse input as JSON: {}", e),
+        }
     })?;
 
     // Execute the selector

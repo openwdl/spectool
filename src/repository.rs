@@ -2,8 +2,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use bon::Builder;
 use bon::builder;
+use bon::Builder;
 use git2::FetchOptions;
 use tracing::info;
 
@@ -41,7 +41,10 @@ impl Repository {
                 .into_path()
                 .join("wdl");
 
-            info!("created temporary directory for repository at `{}`", path.display());
+            info!(
+                "created temporary directory for repository at `{}`",
+                path.display()
+            );
 
             path
         });
@@ -55,7 +58,10 @@ impl Repository {
                 .map_err(Into::into);
         }
 
-        info!("creating new git repository with branch `{branch}`", branch = self.branch);
+        info!(
+            "creating new git repository with branch `{branch}`",
+            branch = self.branch
+        );
         let mut fetch_options = FetchOptions::new();
         fetch_options.depth(1);
 

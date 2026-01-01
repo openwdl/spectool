@@ -54,7 +54,10 @@ fn filter_outputs_recursive(value: &Value, exclude: &[String], current_path: &st
                     if exclude.contains(key) || exclude.contains(&full_path) {
                         None
                     } else {
-                        Some((key.clone(), filter_outputs_recursive(val, exclude, &full_path)))
+                        Some((
+                            key.clone(),
+                            filter_outputs_recursive(val, exclude, &full_path),
+                        ))
                     }
                 })
                 .collect();
@@ -267,7 +270,10 @@ mod tests {
         let actual = json!({"outer": {"inner": {"value": 43}}});
         let result = validate_outputs(&expected, &actual, &[]);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("outer.inner.value"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("outer.inner.value"));
     }
 
     #[test]
@@ -283,7 +289,10 @@ mod tests {
         let actual = json!({"items": [1, 2]});
         let result = validate_outputs(&expected, &actual, &[]);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("array length mismatch"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("array length mismatch"));
     }
 
     #[test]

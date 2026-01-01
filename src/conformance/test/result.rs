@@ -1,7 +1,7 @@
 use std::fmt;
 
-use crate::conformance::Capability;
 use crate::conformance::test::ReturnCode;
+use crate::conformance::Capability;
 
 /// The result of running a conformance test.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,7 +74,11 @@ impl fmt::Display for FailureReason {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FailureReason::ReturnCodeMismatch { expected, actual } => {
-                write!(f, "return code mismatch: expected {:?}, got {}", expected, actual)
+                write!(
+                    f,
+                    "return code mismatch: expected {:?}, got {}",
+                    expected, actual
+                )
             }
             FailureReason::OutputMismatch { details } => {
                 write!(f, "output mismatch: {}", details)

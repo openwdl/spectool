@@ -40,5 +40,4 @@ pub fn substitute(
     command = command.replace("~{output}", &output.display().to_string());
     command = command.replace("~{target}", target.name());
     command.trim().to_string()
-
 }

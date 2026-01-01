@@ -16,9 +16,8 @@ use crate::conformance;
 ///
 /// Matches `version X.Y` or `version X.Y.Z` and replaces with the injected version.
 fn inject_version(src: &str, inject_wdl_version: &str) -> String {
-    static VERSION_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?m)^(\s*)version\s+\S+").unwrap()
-    });
+    static VERSION_REGEX: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?m)^(\s*)version\s+\S+").unwrap());
 
     VERSION_REGEX
         .replace(src, format!("${{1}}version {}", inject_wdl_version))
@@ -60,8 +59,7 @@ impl Runner {
         //==================================//
 
         let data_dir = root_dir.join("data");
-        std::fs::create_dir_all(&data_dir)
-            .context("creating `data` directory")?;
+        std::fs::create_dir_all(&data_dir).context("creating `data` directory")?;
 
         //================================//
         // Gather and write the resources //
@@ -79,8 +77,9 @@ impl Runner {
             }
 
             if let Some(parent) = file_path.parent() {
-                std::fs::create_dir_all(parent)
-                    .with_context(|| format!("creating parent directories for `{}`", resource.filename()))?;
+                std::fs::create_dir_all(parent).with_context(|| {
+                    format!("creating parent directories for `{}`", resource.filename())
+                })?;
             }
 
             std::fs::write(file_path, resource.src())
@@ -138,8 +137,7 @@ fn ensure_empty_dir<P: AsRef<Path>>(path: P, force: bool) -> Result<()> {
     let path = path.as_ref();
 
     if !path.exists() {
-        std::fs::create_dir_all(path)
-            .context("creating conformance tests directory")?;
+        std::fs::create_dir_all(path).context("creating conformance tests directory")?;
     }
 
     if !path.is_dir() {

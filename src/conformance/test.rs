@@ -138,11 +138,7 @@ impl Test {
         let config_target = self.config.target();
 
         // Apply validation rules from SPEC.md
-        match (
-            single_target,
-            input_inferred_target.as_ref(),
-            config_target,
-        ) {
+        match (single_target, input_inferred_target.as_ref(), config_target) {
             // If target can be inferred but `config.target` is provided, error.
             (Some(_), _, Some(_)) => {
                 bail!(
@@ -256,7 +252,7 @@ impl Test {
             let prefix = prefixes.into_iter().next().unwrap();
 
             // Check if prefix matches workflow or task
-            if matches!(decls.workflow(), Some(wf) if wf == &prefix) {
+            if matches!(decls.workflow(), Some(wf) if wf == prefix) {
                 Ok(Some(wdl::Target::Workflow(prefix)))
             } else if decls.tasks().contains(&prefix) {
                 Ok(Some(wdl::Target::Task(prefix)))
@@ -268,10 +264,7 @@ impl Test {
                 );
             }
         } else if prefixes.len() > 1 {
-            bail!(
-                "ambiguous input prefixes (test: `{}`)",
-                self.file_name
-            );
+            bail!("ambiguous input prefixes (test: `{}`)", self.file_name);
         } else {
             Ok(None)
         }

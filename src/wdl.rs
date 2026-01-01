@@ -23,14 +23,12 @@ impl Target {
 }
 
 /// Regex to match workflow declarations in WDL.
-static WORKFLOW_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?m)^\s*workflow\s+(\w+)\s*\{").unwrap()
-});
+static WORKFLOW_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?m)^\s*workflow\s+(\w+)\s*\{").unwrap());
 
 /// Regex to match task declarations in WDL.
-static TASK_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?m)^\s*task\s+(\w+)\s*\{").unwrap()
-});
+static TASK_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?m)^\s*task\s+(\w+)\s*\{").unwrap());
 
 /// The declarations found in a WDL file.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,7 +60,7 @@ impl WdlDeclarations {
     /// - There is no workflow and zero or multiple tasks
     pub fn single_target(&self) -> Option<Target> {
         match (&self.workflow, self.tasks.as_slice()) {
-            (Some(wf), _) => Some(Target::Workflow(wf.clone())),  // Workflow always takes precedence
+            (Some(wf), _) => Some(Target::Workflow(wf.clone())), // Workflow always takes precedence
             (None, [task]) => Some(Target::Task(task.clone())),
             _ => None,
         }
@@ -106,7 +104,10 @@ mod tests {
         let decls = parse_wdl_declarations(wdl).unwrap();
         assert_eq!(decls.workflow(), Some("hello"));
         assert_eq!(decls.tasks(), &[] as &[String]);
-        assert_eq!(decls.single_target(), Some(Target::Workflow("hello".to_string())));
+        assert_eq!(
+            decls.single_target(),
+            Some(Target::Workflow("hello".to_string()))
+        );
     }
 
     #[test]
@@ -123,7 +124,10 @@ mod tests {
         let decls = parse_wdl_declarations(wdl).unwrap();
         assert_eq!(decls.workflow(), None);
         assert_eq!(decls.tasks(), &["my_task"]);
-        assert_eq!(decls.single_target(), Some(Target::Task("my_task".to_string())));
+        assert_eq!(
+            decls.single_target(),
+            Some(Target::Task("my_task".to_string()))
+        );
     }
 
     #[test]
@@ -148,7 +152,10 @@ mod tests {
         let decls = parse_wdl_declarations(wdl).unwrap();
         assert_eq!(decls.workflow(), Some("my_workflow"));
         assert_eq!(decls.tasks(), &["task1", "task2"]);
-        assert_eq!(decls.single_target(), Some(Target::Workflow("my_workflow".to_string())));
+        assert_eq!(
+            decls.single_target(),
+            Some(Target::Workflow("my_workflow".to_string()))
+        );
     }
 
     #[test]
