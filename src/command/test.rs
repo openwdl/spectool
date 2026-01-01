@@ -310,26 +310,26 @@ pub fn main(mut args: Args) -> Result<()> {
     // Print summary     //
     //===================//
 
-    println!("\n{}", "=".repeat(60));
-    println!("Test Summary");
-    println!("{}", "=".repeat(60));
-    println!();
+    eprintln!("\n{}", "=".repeat(60));
+    eprintln!("Test Summary");
+    eprintln!("{}", "=".repeat(60));
+    eprintln!();
 
     let passed = results.iter().filter(|(_, r)| r.is_passed()).count();
     let failed = results.iter().filter(|(_, r)| r.is_failed()).count();
     let skipped = results.iter().filter(|(_, r)| r.is_skipped()).count();
 
-    println!("Passed:  {}", passed);
-    println!("Failed:  {}", failed);
-    println!("Skipped: {}", skipped);
-    println!("Total:   {}", results.len());
-    println!();
-    println!("Total time:   {:.2}s", total_elapsed.as_secs_f64());
+    eprintln!("Passed:  {}", passed);
+    eprintln!("Failed:  {}", failed);
+    eprintln!("Skipped: {}", skipped);
+    eprintln!("Total:   {}", results.len());
+    eprintln!();
+    eprintln!("Total time:   {:.2}s", total_elapsed.as_secs_f64());
 
     let executed = passed + failed;
     if executed > 0 {
         let avg_time = total_elapsed.as_secs_f64() / executed as f64;
-        println!("Average time: {:.2}s per test", avg_time);
+        eprintln!("Average time: {:.2}s per test", avg_time);
     }
 
     if failed > 0 {
@@ -496,12 +496,12 @@ fn print_result(
         .unwrap_or_default();
 
     if let Some(details_str) = details {
-        println!(
+        eprintln!(
             "{}{}{}{}{}{} ({})",
             test_name, dots, color_code, status, reset_code, time_str, details_str
         );
     } else {
-        println!(
+        eprintln!(
             "{}{}{}{}{}{}",
             test_name, dots, color_code, status, reset_code, time_str
         );
