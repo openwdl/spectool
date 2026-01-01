@@ -7,10 +7,11 @@ use crate::conformance::Target;
 /// Builds the command with substitutions and target-specific arguments.
 ///
 /// Substitutions:
+///
 /// - `~{path}` → path to the WDL file
 /// - `~{input}` → path to the inputs.json file
 /// - `~{output}` → path to the outputs.json file
-/// - `~{target}` in target args → workflow or task name
+/// - `~{target}` → workflow or task name
 ///
 /// The appropriate target args template is selected based on the target type
 /// and appended to the command after substitutions.
@@ -38,6 +39,6 @@ pub fn substitute(
     command = command.replace("~{input}", &input.display().to_string());
     command = command.replace("~{output}", &output.display().to_string());
     command = command.replace("~{target}", target.name());
+    command.trim().to_string()
 
-    command
 }
