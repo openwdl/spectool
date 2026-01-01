@@ -95,3 +95,98 @@ fn required_string(captures: &Captures<'_>, index: usize, name: &str) -> Result<
         })
         .map(|v| v.as_str().to_owned())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn smoke() {
+        let markdown = r#"
+# WDL Specification
+
+<details>
+<summary>
+Resource: hello.txt
+
+```txt
+hello world
+```
+
+</summary>
+</details>
+
+<details>
+<summary>
+Resource: cities.txt
+
+```txt
+Houston
+Chicago
+Piscataway
+```
+
+</summary>
+</details>
+
+<details>
+<summary>
+Example: not_a_resource.wdl
+
+```wdl
+version 1.2
+```
+
+</summary>
+</details>
+
+<details>
+<summary>
+Resource: data/nested/file.txt
+
+```
+nested content
+```
+
+</summary>
+</details>
+
+<details>
+<summary>
+Resource: empty.txt
+
+```
+```
+
+</summary>
+</details>
+"#;
+
+        let resources = Resources::compile(markdown).unwrap();
+        let items: Vec<_> = resources.iter().collect();
+
+        assert_eq!(items.len(), 4);
+
+        assert_eq!(items[0].filename(), "hello.txt");
+        assert_eq!(items[0].src(), "hello world\n");
+
+        assert_eq!(items[1].filename(), "cities.txt");
+        assert_eq!(items[1].src(), "Houston\nChicago\nPiscataway\n");
+
+        assert_eq!(items[2].filename(), "data/nested/file.txt");
+        assert_eq!(items[2].src(), "nested content\n");
+
+        assert_eq!(items[3].filename(), "empty.txt");
+        assert_eq!(items[3].src(), "\n");
+    }
+
+    #[test]
+    fn no_resources_when_none_present() {
+        let markdown = "# Just a heading\n\nSome text.";
+
+        let resources = Resources::compile(markdown).unwrap();
+        let items: Vec<_> = resources.iter().collect();
+
+        assert_eq!(items.len(), 0);
+    }
+}
