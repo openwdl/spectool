@@ -8,9 +8,6 @@ use bon::Builder;
 use git2::FetchOptions;
 use tracing::info;
 
-/// The default URL for the `openwdl/wdl` repository.
-const REPOSITORY_URL: &str = "https://github.com/openwdl/wdl.git";
-
 /// The WDL specification repository.
 #[derive(Builder)]
 #[builder(builder_type = Builder)]
@@ -28,7 +25,7 @@ pub struct Repository {
     branch: String,
 
     /// The remote url.
-    #[builder(default = REPOSITORY_URL.to_owned())]
+    #[builder(into)]
     url: String,
 }
 
@@ -91,10 +88,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_url() {
-        let repo = Repository::builder().branch("main").build();
+    fn url_is_set() {
+        let repo = Repository::builder()
+            .branch("main")
+            .url("https://github.com/example/repo.git")
+            .build();
 
         assert!(repo.local_dir.is_none());
-        assert_eq!(repo.url(), REPOSITORY_URL);
+        assert_eq!(repo.url(), "https://github.com/example/repo.git");
     }
 }

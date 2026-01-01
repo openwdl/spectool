@@ -33,6 +33,10 @@ pub struct Args {
     #[arg(short, long, default_value = "wdl-1.2")]
     branch: String,
 
+    /// The git repository URL to clone.
+    #[arg(long, default_value = "https://github.com/openwdl/wdl.git")]
+    repository_url: String,
+
     /// A directory that contains the conformance tests.
     #[arg(short, long)]
     conformance_test_dir: Option<PathBuf>,
@@ -142,6 +146,7 @@ pub fn main(mut args: Args) -> Result<()> {
 
     let (_, path) = Repository::builder()
         .branch(args.branch)
+        .url(args.repository_url)
         .maybe_local_dir(args.specification_dir)
         .build()
         .checkout()?;
