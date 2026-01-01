@@ -1,0 +1,70 @@
+name: Release `spectool`
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust-target: x86_64-pc-windows-msvc
+            os: windows-latest
+            extension: zip
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update Rust
+      run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
+    - run: cargo --locked build --release --target ${{ matrix.rust-target }}
+    - run: 7z a spectool-${{ github.ref_name }}-${{ matrix.rust-target }}.zip spectool.exe
+      working-directory: ./target/${{ matrix.rust-target }}/release
+    - name: Update the GH release with the new artifact
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ./target/${{ matrix.rust-target }}/release/spectool-${{ github.ref_name }}-${{ matrix.rust-target }}.${{ matrix.extension }}
+  macos:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust-target: aarch64-apple-darwin
+            os: macos-latest
+            extension: tar.gz
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update Rust
+      run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
+    - run: brew install openssl pkg-config
+    - run: PKG_CONFIG_SYSROOT_DIR=/ cargo --locked build --release --target ${{ matrix.rust-target }}
+    - run: tar -czvf spectool-${{ github.ref_name }}-${{ matrix.rust-target }}.tar.gz spectool
+      working-directory: ./target/${{ matrix.rust-target }}/release
+    - name: Update the GH release with the new artifact
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ./target/${{ matrix.rust-target }}/release/spectool-${{ github.ref_name }}-${{ matrix.rust-target }}.${{ matrix.extension }}
+  linux:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust-target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            extension: tar.gz
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update Rust
+      run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
+    - run: sudo apt-get install pkg-config libssl-dev
+    - run: PKG_CONFIG_SYSROOT_DIR=/ cargo --locked build --release --target ${{ matrix.rust-target }}
+    - run: tar -czvf spectool-${{ github.ref_name }}-${{ matrix.rust-target }}.tar.gz spectool
+      working-directory: ./target/${{ matrix.rust-target }}/release
+    - name: Update the GH release with the new artifact
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ./target/${{ matrix.rust-target }}/release/spectool-${{ github.ref_name }}-${{ matrix.rust-target }}.${{ matrix.extension }}
