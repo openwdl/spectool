@@ -12,6 +12,7 @@ use clap::Parser;
 use strum::IntoEnumIterator;
 
 use crate::Repository;
+use crate::badge::Badge;
 use crate::conformance::Capability;
 use crate::conformance::FailureReason;
 use crate::conformance::ReturnCode;
@@ -105,6 +106,14 @@ pub struct Args {
     #[arg(long, value_name = "VERSION")]
     inject_wdl_version: Option<String>,
 
+    /// Label for JSON badge output to stdout.
+    ///
+    /// The badge is output in Shields.io endpoint format with test results.
+    /// For example, `--label "Cromwell WDL 1.2"` outputs:
+    /// `{"schemaVersion": 1, "label": "Sprocket WDL 1.2", "message": "157/169 passed", "color": "yellow"}`
+    #[arg(long, default_value = "Spectool")]
+    label: String,
+
     /// The command to call for each execution.
     ///
     #[arg(help = r#"The command to call for each execution.
@@ -158,7 +167,7 @@ pub fn main(mut args: Args) -> Result<()> {
 
     let root_dir = args
         .conformance_test_dir
-        .map(|path| std::fs::canonicalize(path).expect("path to canonicalize"))
+        .map(|path| std::path::absolute(path).expect("path to be made absolute"))
         .unwrap_or_else(|| tempfile::tempdir().expect("tempdir to create").into_path());
 
     let runner = Runner::compile(
@@ -322,7 +331,7 @@ pub fn main(mut args: Args) -> Result<()> {
     eprintln!("Passed:  {}", passed);
     eprintln!("Failed:  {}", failed);
     eprintln!("Skipped: {}", skipped);
-    eprintln!("Total:   {}", results.len());
+    eprintln!("Total:   {}", passed + failed);
     eprintln!();
     eprintln!("Total time:   {:.2}s", total_elapsed.as_secs_f64());
 
@@ -331,6 +340,16 @@ pub fn main(mut args: Args) -> Result<()> {
         let avg_time = total_elapsed.as_secs_f64() / executed as f64;
         eprintln!("Average time: {:.2}s per test", avg_time);
     }
+
+    //=======================//
+    // Output JSON to stdout //
+    //=======================//
+
+    let badge_passed = results.iter().filter(|(_, r)| r.is_passed()).count();
+    let badge_failed = results.iter().filter(|(_, r)| r.is_failed()).count();
+    let badge_total = badge_passed + badge_failed;
+
+    Badge::from_results(args.label, badge_passed, badge_total).output();
 
     if failed > 0 {
         bail!("{} test(s) failed", failed);
