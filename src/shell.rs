@@ -1,3 +1,5 @@
+//! Shell faculties for substitutions.
+
 use std::path::PathBuf;
 
 use bon::builder;

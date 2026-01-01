@@ -1,3 +1,5 @@
+//! Simple WDL inference faculties.
+
 use std::sync::LazyLock;
 
 use anyhow::Result;

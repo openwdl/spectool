@@ -1,9 +1,12 @@
+//! The CLI interface for `spectool`.
+
 use anyhow::Result;
 use clap::Parser;
 use clap::Subcommand;
 use clap_verbosity_flag::Verbosity;
 use spectool::command::test::Args as TestArgs;
 
+/// A supported subcommand.
 #[derive(Subcommand, Debug)]
 pub enum Command {
     /// Performs conformance tests on the WDL specification.
@@ -13,6 +16,7 @@ pub enum Command {
 /// A command-line tool for working with the WDL specification.
 #[derive(Parser, Debug)]
 pub struct Args {
+    /// The subcommand to run.
     #[command(subcommand)]
     command: Command,
 

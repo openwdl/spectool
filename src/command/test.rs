@@ -1,3 +1,5 @@
+//! A subcommand to run the conformance tests.
+
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -115,6 +117,7 @@ The following substitutions are supported:
     command: String,
 }
 
+/// The main method.
 pub fn main(mut args: Args) -> Result<()> {
     //======================//
     // Handle capabilities //

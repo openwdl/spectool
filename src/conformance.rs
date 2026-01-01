@@ -1,3 +1,5 @@
+//! Conformance tests.
+
 mod resource;
 pub mod test;
 

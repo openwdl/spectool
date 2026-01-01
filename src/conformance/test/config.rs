@@ -1,3 +1,5 @@
+//! Configuration for conformance tests.
+
 use serde::Deserialize;
 use serde::Serialize;
 use strum_macros::EnumIter;

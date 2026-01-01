@@ -1,3 +1,5 @@
+//! The conformance test runner.
+
 use std::fs::DirEntry;
 use std::path::Path;
 use std::path::PathBuf;

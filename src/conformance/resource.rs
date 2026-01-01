@@ -1,3 +1,5 @@
+//! Conformance test resource parsing from within `SPEC.md`.
+
 use std::sync::LazyLock;
 
 use anyhow::anyhow;
@@ -81,7 +83,7 @@ fn build_resource(captures: Captures<'_>) -> Result<Resource> {
 }
 
 /// Parses a _required_ group within a test.
-fn required_string(captures: &Captures, index: usize, name: &str) -> Result<String> {
+fn required_string(captures: &Captures<'_>, index: usize, name: &str) -> Result<String> {
     captures
         .get(index)
         .ok_or_else(|| {

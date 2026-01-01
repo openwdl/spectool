@@ -65,17 +65,6 @@ jobs:
         run: rustup update stable && rustup default stable
       - run: cargo --locked doc
 
-  workspace-lints-enabled:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Update Rust
-        run: rustup update stable && rustup default stable
-      - run: cargo --locked install cargo-workspace-lints
-      - run: cargo --locked workspace-lints
-
   udeps:
     runs-on: ubuntu-latest
     steps:

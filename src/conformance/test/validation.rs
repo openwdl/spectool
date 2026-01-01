@@ -1,3 +1,5 @@
+//! Validation of conformance test results.
+
 use std::borrow::Cow;
 use std::path::Path;
 

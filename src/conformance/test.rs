@@ -1,3 +1,5 @@
+//! Conformance test parsing from within `SPEC.md`.
+
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
@@ -321,7 +323,7 @@ fn build_conformance_test(captures: Captures<'_>) -> Result<Test> {
 }
 
 /// Parses a _required_ group within a test.
-fn required_string(captures: &Captures, index: usize, name: &str) -> Result<String> {
+fn required_string(captures: &Captures<'_>, index: usize, name: &str) -> Result<String> {
     captures
         .get(index)
         .ok_or_else(|| {
@@ -335,12 +337,12 @@ fn required_string(captures: &Captures, index: usize, name: &str) -> Result<Stri
 }
 
 /// Parses an _optional_ group within a test.
-fn optional_json_group(captures: &Captures, index: usize) -> Option<Value> {
+fn optional_json_group(captures: &Captures<'_>, index: usize) -> Option<Value> {
     captures.get(index).and_then(|v| v.as_str().parse().ok())
 }
 
 /// Parses an _optional_ group within a test.
-fn optional_group<D>(captures: &Captures, index: usize) -> Result<Option<D>>
+fn optional_group<D>(captures: &Captures<'_>, index: usize) -> Result<Option<D>>
 where
     D: DeserializeOwned,
 {

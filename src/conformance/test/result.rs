@@ -1,3 +1,5 @@
+//! Results of a conformance test.
+
 use std::fmt;
 
 use crate::conformance::test::ReturnCode;

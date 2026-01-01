@@ -1,3 +1,5 @@
+//! Faculties for interacting with the `openwdl/wdl` repository.
+
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -7,6 +9,7 @@ use bon::Builder;
 use git2::FetchOptions;
 use tracing::info;
 
+/// The default URL for the `openwdl/wdl` repository.
 const REPOSITORY_URL: &str = "https://github.com/openwdl/wdl.git";
 
 /// The WDL specification repository.
