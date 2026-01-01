@@ -5,22 +5,22 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
 
-use anyhow::bail;
 use anyhow::Context as _;
 use anyhow::Result;
+use anyhow::bail;
 use clap::Parser;
 use strum::IntoEnumIterator;
 
-use crate::conformance::test::validation::validate_outputs;
-use crate::conformance::test::Runner;
+use crate::Repository;
 use crate::conformance::Capability;
 use crate::conformance::FailureReason;
 use crate::conformance::ReturnCode;
 use crate::conformance::SkipReason;
 use crate::conformance::Test;
 use crate::conformance::TestResult;
+use crate::conformance::test::Runner;
+use crate::conformance::test::validation::validate_outputs;
 use crate::shell::substitute;
-use crate::Repository;
 
 /// The file name of the specification.
 const SPEC_FILE_NAME: &str = "SPEC.md";
@@ -514,7 +514,7 @@ fn apply_selector(
     input: &serde_json::Value,
 ) -> Result<serde_json::Value, FailureReason> {
     use jaq_core::load::{Arena, File, Loader};
-    use jaq_core::{data, unwrap_valr, Compiler, Ctx, Vars};
+    use jaq_core::{Compiler, Ctx, Vars, data, unwrap_valr};
     use jaq_json::Val;
 
     let program = File {

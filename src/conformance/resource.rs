@@ -2,9 +2,8 @@
 
 use std::sync::LazyLock;
 
-use anyhow::anyhow;
 use anyhow::Result;
-use bon::builder;
+use anyhow::anyhow;
 use bon::Builder;
 use regex::Captures;
 use regex::Regex;

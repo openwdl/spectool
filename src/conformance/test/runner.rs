@@ -5,9 +5,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use regex::Regex;
 use tracing::info;
 use tracing::warn;
@@ -181,13 +181,7 @@ fn ensure_empty_dir<P: AsRef<Path>>(path: P, force: bool) -> Result<()> {
                         "entries exist"
                     }
                 },
-                them = {
-                    if entries.len() == 1 {
-                        "it"
-                    } else {
-                        "them"
-                    }
-                },
+                them = { if entries.len() == 1 { "it" } else { "them" } },
             );
         }
     }

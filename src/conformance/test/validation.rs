@@ -3,9 +3,9 @@
 use std::borrow::Cow;
 use std::path::Path;
 
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::bail;
 use serde_json::Value;
 
 /// Validates that the actual output matches the expected output.
@@ -272,10 +272,12 @@ mod tests {
         let actual = json!({"outer": {"inner": {"value": 43}}});
         let result = validate_outputs(&expected, &actual, &[]);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("outer.inner.value"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("outer.inner.value")
+        );
     }
 
     #[test]
@@ -291,10 +293,12 @@ mod tests {
         let actual = json!({"items": [1, 2]});
         let result = validate_outputs(&expected, &actual, &[]);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("array length mismatch"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("array length mismatch")
+        );
     }
 
     #[test]

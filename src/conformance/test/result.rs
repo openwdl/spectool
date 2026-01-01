@@ -2,8 +2,8 @@
 
 use std::fmt;
 
-use crate::conformance::test::ReturnCode;
 use crate::conformance::Capability;
+use crate::conformance::test::ReturnCode;
 
 /// The result of running a conformance test.
 #[derive(Debug, Clone, PartialEq, Eq)]
