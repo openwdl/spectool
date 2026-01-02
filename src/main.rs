@@ -15,6 +15,7 @@ pub enum Command {
 
 /// A command-line tool for working with the WDL specification.
 #[derive(Parser, Debug)]
+#[command(version)]
 pub struct Args {
     /// The subcommand to run.
     #[command(subcommand)]
