@@ -195,6 +195,7 @@ pub fn main(mut args: Args) -> Result<()> {
 
     let mut results = Vec::new();
     let mut total_elapsed = std::time::Duration::ZERO;
+    let mut test_times = Vec::new();
 
     for test in runner.tests() {
         // (1) Check if test should be filtered by include/exclude
@@ -298,7 +299,10 @@ pub fn main(mut args: Args) -> Result<()> {
 
         // (8) Print result and store it
         match &result {
-            TestResult::Passed => print_result(test.file_name(), "PASS", None, Some(elapsed)),
+            TestResult::Passed => {
+                print_result(test.file_name(), "PASS", None, Some(elapsed));
+                test_times.push(elapsed);
+            }
             TestResult::Failed(reason) => {
                 print_result(
                     test.file_name(),
@@ -306,6 +310,7 @@ pub fn main(mut args: Args) -> Result<()> {
                     Some(&reason.to_string()),
                     Some(elapsed),
                 );
+                test_times.push(elapsed);
             }
             TestResult::Skipped(reason) => {
                 print_result(
@@ -340,10 +345,15 @@ pub fn main(mut args: Args) -> Result<()> {
     eprintln!();
     eprintln!("Total time:   {:.2}s", total_elapsed.as_secs_f64());
 
-    let executed = passed + failed;
-    if executed > 0 {
-        let avg_time = total_elapsed.as_secs_f64() / executed as f64;
-        eprintln!("Average time: {:.2}s per test", avg_time);
+    if !test_times.is_empty() {
+        test_times.sort();
+        let median_time = if test_times.len() % 2 == 0 {
+            let mid = test_times.len() / 2;
+            (test_times[mid - 1].as_secs_f64() + test_times[mid].as_secs_f64()) / 2.0
+        } else {
+            test_times[test_times.len() / 2].as_secs_f64()
+        };
+        eprintln!("Median time:  {:.2}s per test", median_time);
     }
 
     //=======================//
