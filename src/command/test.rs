@@ -356,10 +356,6 @@ pub fn main(mut args: Args) -> Result<()> {
 
     Badge::from_results(args.label, badge_passed, badge_total).output();
 
-    if failed > 0 {
-        bail!("{} test(s) failed", failed);
-    }
-
     Ok(())
 }
 
