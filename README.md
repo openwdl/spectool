@@ -59,14 +59,14 @@ spectool test "sprocket run ~{path} ~{input} -e ~{target}" --exclude fail
 **Inject a different WDL version:**
 
 ```bash
-# Replace version 1.2 with version development (useful for Cromwell)
+# Replace version 1.2 with version development
 spectool test "cromwell run ~{path} -i ~{input}" --inject-wdl-version development --redirect-stdout
 ```
 
 **Transform output JSON before validation:**
 
 ```bash
-# Extract .outputs field from the engine's output (useful for Cromwell and MiniWDL)
+# Extract .outputs field from the engine's output
 spectool test "miniwdl run ~{path} -i ~{input}" --output-selector '.outputs' --redirect-stdout
 ```
 
@@ -102,6 +102,7 @@ To test [MiniWDL], you can use the following script.
 ```bash
 spectool test \
   "miniwdl run ~{path} -i ~{input}" \
+  --inject-wdl-version development \
   --output-selector '.outputs' \
   --redirect-stdout \
   --all-capabilities
@@ -114,6 +115,7 @@ To test [Toil], you can use the following script.
 ```bash
 spectool test \
   "toil-wdl-runner ~{path} --inputs ~{input}" \
+  --inject-wdl-version development \
   --redirect-stdout \
   --all-capabilities
 ```
