@@ -50,10 +50,10 @@ spectool test "sprocket run ~{path} ~{input} -e ~{target}" --redirect-stdout -c 
 
 ```bash
 # Run only tests matching "array"
-spectool test "sprocket run ~{path} ~{input} -e ~{target}" --include array 
+spectool test "sprocket run ~{path} ~{input} -e ~{target}" --include array
 
 # Exclude tests matching "fail"
-spectool test "sprocket run ~{path} ~{input} -e ~{target}" --exclude fail 
+spectool test "sprocket run ~{path} ~{input} -e ~{target}" --exclude fail
 ```
 
 **Inject a different WDL version:**
@@ -66,40 +66,67 @@ spectool test "cromwell run ~{path} -i ~{input}" --inject-wdl-version developmen
 **Transform output JSON before validation:**
 
 ```bash
-# Extract .outputs field from the engine's output (useful for MiniWDL)
+# Extract .outputs field from the engine's output (useful for Cromwell and MiniWDL)
 spectool test "miniwdl run ~{path} -i ~{input}" --output-selector '.outputs' --redirect-stdout
 ```
 
 **Test with specific capabilities:**
 
 ```bash
-spectool test "..." --capabilities optional_inputs,optional_outputs 
+spectool test "..." --capabilities optional_inputs,optional_outputs
 ```
 
 ## Example Workflows
 
-### Testing Sprocket
-
-```bash
-spectool test "sprocket run ~{path} ~{input} -e ~{target}" --redirect-stdout
-```
-
 ### Testing Cromwell
+
+To test [Cromwell], you can use the following script.
 
 ```bash
 spectool test \
-  "cromwell run ~{path} -i ~{input}" \
+  "cromwell run ~{path} -i ~{input} --metadata-output ~{output}" \
   --inject-wdl-version development \
-  --redirect-stdout
+  --output-selector .outputs \
+  --redirect-stdout \
+  --all-capabilities
 ```
 
+This script assumes you have `cromwell` installed using
+[Homebrew](https://formulae.brew.sh/formula/cromwell). If you don't, you'll have
+to substitute the `cromwell` script with `java -jar cromwell.jar`.
+
 ### Testing MiniWDL
+
+To test [MiniWDL], you can use the following script.
 
 ```bash
 spectool test \
   "miniwdl run ~{path} -i ~{input}" \
   --output-selector '.outputs' \
-  --redirect-stdout
+  --redirect-stdout \
+  --all-capabilities
+```
+
+### Testing Toil
+
+To test [Toil], you can use the following script.
+
+```bash
+spectool test \
+  "toil-wdl-runner ~{path} --inputs ~{input}" \
+  --redirect-stdout \
+  --all-capabilities
+```
+
+### Testing Sprocket
+
+To test [Sprocket], you can use the following script.
+
+```bash
+spectool test \
+  "sprocket run ~{path} ~{input} -e ~{target}" \
+  --redirect-stdout \
+  --all-capabilities
 ```
 
 ## License
@@ -107,3 +134,8 @@ spectool test \
 This tool is made available to you under [the BSD 3-Clause License](./LICENSE).
 
 Copyright (c) 2025, The OpenWDL Developers
+
+[Cromwell]: https://github.com/broadinstitute/cromwell
+[MiniWDL]: https://github.com/chanzuckerberg/miniwdl
+[Toil]: https://github.com/DataBiosphere/toil
+[Sprocket]: https://github.com/stjude-rust-labs/sprocket
