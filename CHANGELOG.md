@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added multicore support for `test`. By default, all cores are now used
+  (configurable with the `--n-cpu` flag).
+
 ### Changed
 
 - Changes test performance metric from average time to median time.

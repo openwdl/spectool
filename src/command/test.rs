@@ -4,12 +4,17 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::mpsc;
+use std::time::Duration;
 
 use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
 use strum::IntoEnumIterator;
+use tracing::info;
 
 use crate::Repository;
 use crate::badge::Badge;
@@ -118,6 +123,13 @@ pub struct Args {
     #[arg(long, default_value = "Spectool")]
     label: String,
 
+    /// Number of CPU cores to use for parallel test execution.
+    ///
+    /// Set to 1 for sequential execution (default).
+    /// Set to 0 to use all available CPU cores.
+    #[arg(short = 'n', long, default_value = "0")]
+    n_cpu: usize,
+
     /// The command to call for each execution.
     ///
     #[arg(help = r#"The command to call for each execution.
@@ -145,9 +157,9 @@ pub fn main(mut args: Args) -> Result<()> {
     //=======================================//
 
     let (_, path) = Repository::builder()
-        .branch(args.branch)
-        .url(args.repository_url)
-        .maybe_local_dir(args.specification_dir)
+        .branch(args.branch.clone())
+        .url(args.repository_url.clone())
+        .maybe_local_dir(args.specification_dir.clone())
         .build()
         .checkout()?;
 
@@ -172,6 +184,7 @@ pub fn main(mut args: Args) -> Result<()> {
 
     let root_dir = args
         .conformance_test_dir
+        .as_ref()
         .map(|path| std::path::absolute(path).expect("path to be made absolute"))
         .unwrap_or_else(|| tempfile::tempdir().expect("tempdir to create").into_path());
 
@@ -182,148 +195,61 @@ pub fn main(mut args: Args) -> Result<()> {
         args.inject_wdl_version.clone(),
     )?;
 
-    //===================================//
-    // Set up the test working directory //
-    //===================================//
+    //=======================================//
+    // Configure parallel execution settings //
+    //=======================================//
 
-    // SAFETY: this should create on all platforms we care about.
-    let workdir = tempfile::tempdir().expect("tempdir to create").into_path();
+    let n_cpu = if args.n_cpu == 0 {
+        num_cpus::get()
+    } else {
+        args.n_cpu
+    };
+
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(n_cpu)
+        .build()
+        .expect("thread pool to build");
+    info!("using {n} cores", n = n_cpu);
 
     //===============//
     // Run the tests //
     //===============//
 
-    let mut results = Vec::new();
-    let mut total_elapsed = std::time::Duration::ZERO;
-    let mut test_times = Vec::new();
+    let wall_time_start = std::time::Instant::now();
+
+    let args = Arc::new(args);
+    let root_dir = Arc::new(runner.root_dir().to_path_buf());
+    let test_times = Arc::new(Mutex::new(Vec::new()));
+    let print_lock = Arc::new(Mutex::new(()));
+    let (tx, rx) = mpsc::channel();
 
     for test in runner.tests() {
-        // (1) Check if test should be filtered by include/exclude
-        let test_name = test.file_name().trim_end_matches(".wdl");
-        if !args.include.is_empty()
-            && !args
-                .include
-                .iter()
-                .any(|pattern| test_name.contains(pattern.as_str()))
-        {
-            continue;
-        }
-        if !args.exclude.is_empty()
-            && args
-                .exclude
-                .iter()
-                .any(|pattern| test_name.contains(pattern.as_str()))
-        {
-            continue;
-        }
-
-        // (2) Check if test should be ignored
-        if test.config().ignore() {
-            print_result(
-                test.file_name(),
-                "SKIP",
-                Some("test marked with `ignore: true`"),
-                None,
+        let test = test.clone();
+        let root_dir = Arc::clone(&root_dir);
+        let args = Arc::clone(&args);
+        let test_times = Arc::clone(&test_times);
+        let print_lock = Arc::clone(&print_lock);
+        let tx = tx.clone();
+        pool.spawn(move || {
+            process_test(
+                test,
+                args,
+                root_dir,
+                test_times,
+                print_lock,
+                tx,
             );
-            results.push((
-                test.file_name().to_string(),
-                TestResult::Skipped(SkipReason::Ignored),
-            ));
-            continue;
-        }
-
-        // (2) Check if test has required capabilities
-        let missing_capabilities: Vec<Capability> = test
-            .config()
-            .capabilities()
-            .iter()
-            .filter(|cap| !args.capabilities.contains(cap))
-            .cloned()
-            .collect();
-
-        if !missing_capabilities.is_empty() {
-            let reason = SkipReason::MissingCapabilities(missing_capabilities);
-            print_result(test.file_name(), "SKIP", Some(&reason.to_string()), None);
-            results.push((test.file_name().to_string(), TestResult::Skipped(reason)));
-            continue;
-        }
-
-        // (3) Recreate the working directory to ensure it's empty
-        // SAFETY: we expect to be able to remove and recreate the directory on all
-        // platforms we care about within this subcommand.
-        std::fs::remove_dir_all(&workdir).unwrap();
-        std::fs::create_dir_all(&workdir).unwrap();
-
-        // (4) Copy data directory to the working directory
-        let source_data_dir = runner.root_dir().join("data");
-        let dest_data_dir = &workdir;
-        if source_data_dir.exists() {
-            let mut options = fs_extra::dir::CopyOptions::new();
-            options.overwrite = true;
-            options.copy_inside = true;
-            // SAFETY: we expect to be able to copy the `data` directory on all
-            // platforms we care about within this subcommand.
-            fs_extra::dir::copy(&source_data_dir, dest_data_dir, &options).unwrap();
-        }
-
-        // (5) Create the inputs file
-        let input_file = create_input_json(test, &workdir).unwrap();
-
-        // (5) Substitute the command
-        let target = test.target().expect("target should be inferred");
-        let output_file = workdir.join("outputs.json");
-        let command = substitute()
-            .command(args.command.clone())
-            .path(test.path().unwrap().to_path_buf())
-            .input(input_file)
-            .output(output_file)
-            .target(target.clone())
-            .workflow_target_args(args.workflow_target_args.clone())
-            .task_target_args(args.task_target_args.clone())
-            .call();
-
-        tracing::debug!("executing command `{}`", command);
-
-        // (6) Execute the test and evaluate the result
-        let start_time = std::time::Instant::now();
-        let result = execute_and_evaluate_test(
-            test,
-            &command,
-            runner.root_dir(),
-            &workdir,
-            args.redirect_stdout,
-            args.output_selector.as_deref(),
-        );
-        let elapsed = start_time.elapsed();
-        total_elapsed += elapsed;
-
-        // (8) Print result and store it
-        match &result {
-            TestResult::Passed => {
-                print_result(test.file_name(), "PASS", None, Some(elapsed));
-                test_times.push(elapsed);
-            }
-            TestResult::Failed(reason) => {
-                print_result(
-                    test.file_name(),
-                    "FAIL",
-                    Some(&reason.to_string()),
-                    Some(elapsed),
-                );
-                test_times.push(elapsed);
-            }
-            TestResult::Skipped(reason) => {
-                print_result(
-                    test.file_name(),
-                    "SKIP",
-                    Some(&reason.to_string()),
-                    Some(elapsed),
-                );
-            }
-        }
-
-        results.push((test.file_name().to_string(), result));
+        });
     }
+
+    drop(tx);
+    let results: Vec<_> = rx.into_iter().collect();
+    let wall_time_elapsed = wall_time_start.elapsed();
+
+    // SAFETY: there should only be one reference to these once all the results
+    // have been consumed. Similarly, we should be able to retrieve the inner
+    // values from the mutexes at this point.
+    let mut test_times = Arc::try_unwrap(test_times).unwrap().into_inner().unwrap();
 
     //===================//
     // Print summary     //
@@ -343,7 +269,7 @@ pub fn main(mut args: Args) -> Result<()> {
     eprintln!("Skipped: {}", skipped);
     eprintln!("Total:   {}", passed + failed);
     eprintln!();
-    eprintln!("Total time:   {:.2}s", total_elapsed.as_secs_f64());
+    eprintln!("Wall time:    {:.2}s", wall_time_elapsed.as_secs_f64());
 
     if !test_times.is_empty() {
         test_times.sort();
@@ -364,9 +290,153 @@ pub fn main(mut args: Args) -> Result<()> {
     let badge_failed = results.iter().filter(|(_, r)| r.is_failed()).count();
     let badge_total = badge_passed + badge_failed;
 
-    Badge::from_results(args.label, badge_passed, badge_total).output();
+    Badge::from_results(&args.label, badge_passed, badge_total).output();
 
     Ok(())
+}
+
+/// Processes a single test.
+fn process_test(
+    test: Test,
+    args: Arc<Args>,
+    root_dir: Arc<PathBuf>,
+    test_times: Arc<Mutex<Vec<Duration>>>,
+    print_lock: Arc<Mutex<()>>,
+    tx: mpsc::Sender<(String, TestResult)>,
+) {
+    // Check if test should be filtered by include/exclude
+    let test_name = test.file_name().trim_end_matches(".wdl");
+    if !args.include.is_empty()
+        && !args
+            .include
+            .iter()
+            .any(|pattern| test_name.contains(pattern.as_str()))
+    {
+        return;
+    }
+    if !args.exclude.is_empty()
+        && args
+            .exclude
+            .iter()
+            .any(|pattern| test_name.contains(pattern.as_str()))
+    {
+        return;
+    }
+
+    // Check if test should be ignored
+    if test.config().ignore() {
+        print_result(
+            test.file_name(),
+            "SKIP",
+            Some("test marked with `ignore: true`"),
+            None,
+            &print_lock,
+        );
+        // SAFETY: we always expect the channel to send.
+        tx.send((
+            test.file_name().to_string(),
+            TestResult::Skipped(SkipReason::Ignored),
+        )).unwrap();
+        return;
+    }
+
+    // Check if test has required capabilities
+    let missing_capabilities: Vec<Capability> = test
+        .config()
+        .capabilities()
+        .iter()
+        .filter(|cap| !args.capabilities.contains(cap))
+        .cloned()
+        .collect();
+
+    if !missing_capabilities.is_empty() {
+        let reason = SkipReason::MissingCapabilities(missing_capabilities);
+        print_result(test.file_name(), "SKIP", Some(&reason.to_string()), None, &print_lock);
+        // SAFETY: we always expect the channel to send.
+        tx.send((test.file_name().to_string(), TestResult::Skipped(reason))).unwrap();
+        return;
+    }
+
+    // Create isolated working directory for this test
+    let workdir = tempfile::Builder::new()
+        .prefix(&format!("spectool-{}-", test_name))
+        .tempdir()
+        .expect("failed to create temporary directory")
+        .into_path();
+
+    // Copy data directory to the working directory
+    let source_data_dir = root_dir.join("data");
+    let dest_data_dir = &workdir;
+    if source_data_dir.exists() {
+        let mut options = fs_extra::dir::CopyOptions::new();
+        options.overwrite = true;
+        options.copy_inside = true;
+        // SAFETY: we expect to be able to copy the `data` directory on all
+        // platforms we care about within this subcommand.
+        fs_extra::dir::copy(&source_data_dir, dest_data_dir, &options).unwrap();
+    }
+
+    // Create the inputs file
+    let input_file = create_input_json(&test, &workdir).unwrap();
+
+    // Substitute the command
+    let target = test.target().expect("target should be inferred");
+    let output_file = workdir.join("outputs.json");
+    let command = substitute()
+        .command(args.command.clone())
+        .path(test.path().unwrap().to_path_buf())
+        .input(input_file)
+        .output(output_file)
+        .target(target.clone())
+        .workflow_target_args(args.workflow_target_args.clone())
+        .task_target_args(args.task_target_args.clone())
+        .call();
+
+    tracing::debug!("executing command `{}`", command);
+
+    // Execute the test and evaluate the result
+    let start_time = std::time::Instant::now();
+    let result = execute_and_evaluate_test(
+        &test,
+        &command,
+        &root_dir,
+        &workdir,
+        args.redirect_stdout,
+        args.output_selector.as_deref(),
+    );
+    let elapsed = start_time.elapsed();
+
+    // Print result and store it
+    match &result {
+        TestResult::Passed => {
+            print_result(test.file_name(), "PASS", None, Some(elapsed), &print_lock);
+            // SAFETY: we always expect to be able to acquire the lock.
+            test_times.lock().unwrap().push(elapsed);
+        }
+        TestResult::Failed(reason) => {
+            print_result(
+                test.file_name(),
+                "FAIL",
+                Some(&reason.to_string()),
+                Some(elapsed),
+                &print_lock
+            );
+            // SAFETY: we always expect to be able to acquire the lock.
+            test_times.lock().unwrap().push(elapsed);
+        }
+        TestResult::Skipped(reason) => {
+            print_result(
+                test.file_name(),
+                "SKIP",
+                Some(&reason.to_string()),
+                Some(elapsed),
+                &print_lock
+            );
+        }
+    }
+
+    // SAFETY: we always expect the channel to send.
+    tx.send((test.file_name().to_string(), result)).unwrap();
 }
 
 /// Creates an `input.json` file.
@@ -508,6 +578,7 @@ fn print_result(
     status: &str,
     details: Option<&str>,
     elapsed: Option<std::time::Duration>,
+    lock: &Mutex<()>,
 ) {
     const TOTAL_WIDTH: usize = 50;
 
@@ -524,6 +595,9 @@ fn print_result(
     let time_str = elapsed
         .map(|d| format!(" [{:.2}s]", d.as_secs_f64()))
         .unwrap_or_default();
+
+    // SAFETY: we expect the lock to always eventually be acquired.
+    let _guard = lock.lock().unwrap();
 
     if let Some(details_str) = details {
         eprintln!(

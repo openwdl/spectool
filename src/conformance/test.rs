@@ -53,7 +53,7 @@ static CONFORMANCE_TEST_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// A conformance test.
-#[derive(Builder, Debug)]
+#[derive(Builder, Clone, Debug)]
 #[builder(builder_type = Builder)]
 pub struct Test {
     /// The path to the test, if has been written.

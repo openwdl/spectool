@@ -70,7 +70,7 @@ where
 }
 
 /// A configuration for a conformance test.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     /// The target workflow or task to execute.

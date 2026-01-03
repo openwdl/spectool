@@ -27,13 +27,13 @@ impl Badge {
     /// - `"yellow"` for 50-99% pass rate
     /// - `"red"` for < 50% pass rate
     /// - `"lightgrey"` for 0 total tests
-    pub fn from_results(label: String, passed: usize, total: usize) -> Self {
+    pub fn from_results(label: &str, passed: usize, total: usize) -> Self {
         let color = determine_color(passed, total);
         let message = format!("{}/{} passed", passed, total);
 
         Self {
             schema_version: 1,
-            label,
+            label: label.to_owned(),
             message,
             color,
         }
