@@ -23,8 +23,8 @@ impl Badge {
     ///
     /// The color is determined by pass rate:
     ///
-    /// - `"brightgreen"` for 100% pass rate
-    /// - `"yellow"` for 50-99% pass rate
+    /// - `"brightgreen"` for >= 95% pass rate
+    /// - `"yellow"` for 50-94% pass rate
     /// - `"red"` for < 50% pass rate
     /// - `"lightgrey"` for 0 total tests
     pub fn from_results(label: &str, passed: usize, total: usize) -> Self {
@@ -54,7 +54,7 @@ fn determine_color(passed: usize, total: usize) -> String {
 
     let pass_rate = (passed as f64) / (total as f64);
 
-    if pass_rate >= 1.0 {
+    if pass_rate >= 0.95 {
         String::from("brightgreen")
     } else if pass_rate >= 0.5 {
         String::from("yellow")
