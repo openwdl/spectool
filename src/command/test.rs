@@ -13,6 +13,9 @@ use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
+use statrs::statistics::Data;
+use statrs::statistics::OrderStatistics;
+use statrs::statistics::Statistics;
 use strum::IntoEnumIterator;
 use tracing::info;
 
@@ -30,6 +33,61 @@ use crate::shell::substitute;
 
 /// The file name of the specification.
 const SPEC_FILE_NAME: &str = "SPEC.md";
+
+/// Holds the timing data for different test result categories.
+#[derive(Clone)]
+struct TestTimings {
+    /// Execution times for tests expected to pass that actually passed.
+    expected_pass_test_pass: Arc<Mutex<Vec<Duration>>>,
+    /// Execution times for tests expected to pass that actually failed.
+    expected_pass_test_fail: Arc<Mutex<Vec<Duration>>>,
+    /// Execution times for tests expected to fail that actually passed.
+    expected_fail_test_pass: Arc<Mutex<Vec<Duration>>>,
+    /// Execution times for tests expected to fail that actually failed.
+    expected_fail_test_fail: Arc<Mutex<Vec<Duration>>>,
+}
+
+impl TestTimings {
+    /// Creates a new `TestTimings` with empty timing vectors.
+    fn new() -> Self {
+        Self {
+            expected_pass_test_pass: Arc::new(Mutex::new(Vec::new())),
+            expected_pass_test_fail: Arc::new(Mutex::new(Vec::new())),
+            expected_fail_test_pass: Arc::new(Mutex::new(Vec::new())),
+            expected_fail_test_fail: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    /// Consumes the `TestTimings` and returns the inner timing vectors.
+    ///
+    /// # Panics
+    ///
+    /// Panics if there are multiple references to any of the inner `Arc`s or if any mutex is poisoned.
+    fn into_parts(self) -> (Vec<Duration>, Vec<Duration>, Vec<Duration>, Vec<Duration>) {
+        let expected_pass_test_pass = Arc::try_unwrap(self.expected_pass_test_pass)
+            .unwrap()
+            .into_inner()
+            .unwrap();
+        let expected_pass_test_fail = Arc::try_unwrap(self.expected_pass_test_fail)
+            .unwrap()
+            .into_inner()
+            .unwrap();
+        let expected_fail_test_pass = Arc::try_unwrap(self.expected_fail_test_pass)
+            .unwrap()
+            .into_inner()
+            .unwrap();
+        let expected_fail_test_fail = Arc::try_unwrap(self.expected_fail_test_fail)
+            .unwrap()
+            .into_inner()
+            .unwrap();
+        (
+            expected_pass_test_pass,
+            expected_pass_test_fail,
+            expected_fail_test_pass,
+            expected_fail_test_fail,
+        )
+    }
+}
 
 /// Performs conformance tests on the WDL specification.
 #[derive(Parser, Debug)]
@@ -219,7 +277,7 @@ pub fn main(mut args: Args) -> Result<()> {
 
     let args = Arc::new(args);
     let root_dir = Arc::new(runner.root_dir().to_path_buf());
-    let test_times = Arc::new(Mutex::new(Vec::new()));
+    let timings = TestTimings::new();
     let print_lock = Arc::new(Mutex::new(()));
     let (tx, rx) = mpsc::channel();
 
@@ -227,18 +285,11 @@ pub fn main(mut args: Args) -> Result<()> {
         let test = test.clone();
         let root_dir = Arc::clone(&root_dir);
         let args = Arc::clone(&args);
-        let test_times = Arc::clone(&test_times);
+        let timings = timings.clone();
         let print_lock = Arc::clone(&print_lock);
         let tx = tx.clone();
         pool.spawn(move || {
-            process_test(
-                test,
-                args,
-                root_dir,
-                test_times,
-                print_lock,
-                tx,
-            );
+            process_test(test, args, root_dir, timings, print_lock, tx);
         });
     }
 
@@ -246,10 +297,12 @@ pub fn main(mut args: Args) -> Result<()> {
     let results: Vec<_> = rx.into_iter().collect();
     let wall_time_elapsed = wall_time_start.elapsed();
 
-    // SAFETY: there should only be one reference to these once all the results
-    // have been consumed. Similarly, we should be able to retrieve the inner
-    // values from the mutexes at this point.
-    let mut test_times = Arc::try_unwrap(test_times).unwrap().into_inner().unwrap();
+    let (
+        expected_pass_test_pass_times,
+        expected_pass_test_fail_times,
+        expected_fail_test_pass_times,
+        expected_fail_test_fail_times,
+    ) = timings.into_parts();
 
     //===================//
     // Print summary     //
@@ -270,16 +323,67 @@ pub fn main(mut args: Args) -> Result<()> {
     eprintln!("Total:   {}", passed + failed);
     eprintln!();
     eprintln!("Wall time:    {:.2}s", wall_time_elapsed.as_secs_f64());
+    eprintln!();
 
-    if !test_times.is_empty() {
-        test_times.sort();
-        let median_time = if test_times.len() % 2 == 0 {
-            let mid = test_times.len() / 2;
-            (test_times[mid - 1].as_secs_f64() + test_times[mid].as_secs_f64()) / 2.0
-        } else {
-            test_times[test_times.len() / 2].as_secs_f64()
-        };
-        eprintln!("Median time:  {:.2}s per test", median_time);
+    // Calculate and display statistics for each category
+    if !expected_pass_test_pass_times.is_empty() {
+        let times_secs: Vec<f64> = expected_pass_test_pass_times
+            .iter()
+            .map(|d| d.as_secs_f64())
+            .collect();
+        let n = times_secs.len();
+        let mean = times_secs.as_slice().mean();
+        let stddev = times_secs.as_slice().std_dev();
+        let median = Data::new(times_secs).median();
+        eprintln!(
+            "Stats (expected pass, test pass, n={}): mean={:.2}s, median={:.2}s, stddev={:.2}s",
+            n, mean, median, stddev
+        );
+    }
+
+    if !expected_pass_test_fail_times.is_empty() {
+        let times_secs: Vec<f64> = expected_pass_test_fail_times
+            .iter()
+            .map(|d| d.as_secs_f64())
+            .collect();
+        let n = times_secs.len();
+        let mean = times_secs.as_slice().mean();
+        let stddev = times_secs.as_slice().std_dev();
+        let median = Data::new(times_secs).median();
+        eprintln!(
+            "Stats (expected pass, test fail, n={}): mean={:.2}s, median={:.2}s, stddev={:.2}s",
+            n, mean, median, stddev
+        );
+    }
+
+    if !expected_fail_test_pass_times.is_empty() {
+        let times_secs: Vec<f64> = expected_fail_test_pass_times
+            .iter()
+            .map(|d| d.as_secs_f64())
+            .collect();
+        let n = times_secs.len();
+        let mean = times_secs.as_slice().mean();
+        let stddev = times_secs.as_slice().std_dev();
+        let median = Data::new(times_secs).median();
+        eprintln!(
+            "Stats (expected fail, test pass, n={}): mean={:.2}s, median={:.2}s, stddev={:.2}s",
+            n, mean, median, stddev
+        );
+    }
+
+    if !expected_fail_test_fail_times.is_empty() {
+        let times_secs: Vec<f64> = expected_fail_test_fail_times
+            .iter()
+            .map(|d| d.as_secs_f64())
+            .collect();
+        let n = times_secs.len();
+        let mean = times_secs.as_slice().mean();
+        let stddev = times_secs.as_slice().std_dev();
+        let median = Data::new(times_secs).median();
+        eprintln!(
+            "Stats (expected fail, test fail, n={}): mean={:.2}s, median={:.2}s, stddev={:.2}s",
+            n, mean, median, stddev
+        );
     }
 
     //=======================//
@@ -300,7 +404,7 @@ fn process_test(
     test: Test,
     args: Arc<Args>,
     root_dir: Arc<PathBuf>,
-    test_times: Arc<Mutex<Vec<Duration>>>,
+    timings: TestTimings,
     print_lock: Arc<Mutex<()>>,
     tx: mpsc::Sender<(String, TestResult)>,
 ) {
@@ -336,7 +440,8 @@ fn process_test(
         tx.send((
             test.file_name().to_string(),
             TestResult::Skipped(SkipReason::Ignored),
-        )).unwrap();
+        ))
+        .unwrap();
         return;
     }
 
@@ -351,9 +456,16 @@ fn process_test(
 
     if !missing_capabilities.is_empty() {
         let reason = SkipReason::MissingCapabilities(missing_capabilities);
-        print_result(test.file_name(), "SKIP", Some(&reason.to_string()), None, &print_lock);
+        print_result(
+            test.file_name(),
+            "SKIP",
+            Some(&reason.to_string()),
+            None,
+            &print_lock,
+        );
         // SAFETY: we always expect the channel to send.
-        tx.send((test.file_name().to_string(), TestResult::Skipped(reason))).unwrap();
+        tx.send((test.file_name().to_string(), TestResult::Skipped(reason)))
+            .unwrap();
         return;
     }
 
@@ -406,12 +518,24 @@ fn process_test(
     );
     let elapsed = start_time.elapsed();
 
-    // Print result and store it
+    // Print result and categorize timing
+    let expected_to_fail = test.config().fail();
     match &result {
         TestResult::Passed => {
             print_result(test.file_name(), "PASS", None, Some(elapsed), &print_lock);
-            // SAFETY: we always expect to be able to acquire the lock.
-            test_times.lock().unwrap().push(elapsed);
+            if expected_to_fail {
+                timings
+                    .expected_fail_test_pass
+                    .lock()
+                    .unwrap()
+                    .push(elapsed);
+            } else {
+                timings
+                    .expected_pass_test_pass
+                    .lock()
+                    .unwrap()
+                    .push(elapsed);
+            }
         }
         TestResult::Failed(reason) => {
             print_result(
@@ -419,10 +543,22 @@ fn process_test(
                 "FAIL",
                 Some(&reason.to_string()),
                 Some(elapsed),
-                &print_lock
+                &print_lock,
             );
-            // SAFETY: we always expect to be able to acquire the lock.
-            test_times.lock().unwrap().push(elapsed);
+
+            if expected_to_fail {
+                timings
+                    .expected_fail_test_fail
+                    .lock()
+                    .unwrap()
+                    .push(elapsed);
+            } else {
+                timings
+                    .expected_pass_test_fail
+                    .lock()
+                    .unwrap()
+                    .push(elapsed);
+            }
         }
         TestResult::Skipped(reason) => {
             print_result(
@@ -430,7 +566,7 @@ fn process_test(
                 "SKIP",
                 Some(&reason.to_string()),
                 Some(elapsed),
-                &print_lock
+                &print_lock,
             );
         }
     }

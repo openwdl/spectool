@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Splits timing statistics into four categories based on expected vs. actual
+  test outcomes (expected pass/test pass, expected pass/test fail, expected
+  fail/test pass, expected fail/test fail).
+
 ## [0.1.4] - 2026-01-03
 
 ### Added
