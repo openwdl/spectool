@@ -31,6 +31,7 @@ fn main() -> Result<()> {
 
     tracing_subscriber::fmt()
         .with_max_level(args.verbosity)
+        .with_writer(std::io::stderr)
         .init();
 
     match args.command {
