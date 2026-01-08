@@ -244,7 +244,7 @@ pub fn main(mut args: Args) -> Result<()> {
         .conformance_test_dir
         .as_ref()
         .map(|path| std::path::absolute(path).expect("path to be made absolute"))
-        .unwrap_or_else(|| tempfile::tempdir().expect("tempdir to create").into_path());
+        .unwrap_or_else(|| tempfile::tempdir().expect("tempdir to create").keep());
 
     let runner = Runner::compile(
         root_dir,
@@ -473,8 +473,8 @@ fn process_test(
     let workdir = tempfile::Builder::new()
         .prefix(&format!("spectool-{}-", test_name))
         .tempdir()
-        .expect("failed to create temporary directory")
-        .into_path();
+        .expect("tempdir to create")
+        .keep();
 
     // Copy data directory to the working directory
     let source_data_dir = root_dir.join("data");

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Changes badge color threshold from `95%` back to `100%` conformance for `brightgreen`.
+
 ## [0.1.6] - 2026-01-04
 
 ### Changed

@@ -36,8 +36,8 @@ impl Repository {
             // SAFETY: on all the platforms we support, we expect a temporary
             // directory to be able to be created.
             let path = tempfile::tempdir()
-                .expect("temporary directory to create")
-                .into_path()
+                .expect("tempdir to create")
+                .keep()
                 .join("wdl");
 
             info!(
