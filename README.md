@@ -22,7 +22,7 @@ cargo install --path .
 engines. You can use `spectool` like so,
 
 ```bash
-spectool test "sprocket run ~{path} ~{input} -e ~{target}" --redirect-stdout
+spectool test "sprocket run ~{path} ~{input} -t ~{target}" --redirect-stdout
 ```
 
 The command template supports the following substitutions:
@@ -37,23 +37,23 @@ The command template supports the following substitutions:
 **Specify the WDL specification directory:**
 
 ```bash
-spectool test "sprocket run ~{path} ~{input} -e ~{target}" --redirect-stdout -s ~/openwdl/wdl
+spectool test "sprocket run ~{path} ~{input} -t ~{target}" --redirect-stdout -s ~/openwdl/wdl
 ```
 
 **Save compiled tests to a directory:**
 
 ```bash
-spectool test "sprocket run ~{path} ~{input} -e ~{target}" --redirect-stdout -c ./conformance-tests
+spectool test "sprocket run ~{path} ~{input} -t ~{target}" --redirect-stdout -c ./conformance-tests
 ```
 
 **Filter tests by name:**
 
 ```bash
 # Run only tests matching "array"
-spectool test "sprocket run ~{path} ~{input} -e ~{target}" --include array
+spectool test "sprocket run ~{path} ~{input} -t ~{target}" --include array
 
 # Exclude tests matching "fail"
-spectool test "sprocket run ~{path} ~{input} -e ~{target}" --exclude fail
+spectool test "sprocket run ~{path} ~{input} -t ~{target}" --exclude fail
 ```
 
 **Inject a different WDL version:**
@@ -126,7 +126,7 @@ To test [Sprocket], you can use the following script.
 
 ```bash
 spectool test \
-  "sprocket run ~{path} ~{input} -e ~{target}" \
+  "sprocket run ~{path} ~{input} -t ~{target}" \
   --redirect-stdout \
   --all-capabilities
 ```
