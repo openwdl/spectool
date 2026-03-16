@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-03-16
+
+### Added
+
+- Adds `--strict` flag to `spectool test` to fail with a non-zero exit code
+  when any tests fail.
+
+### Changed
+
+- Updates Sprocket `-e` flag to `-t` in `README.md` examples.
+
 ## [0.1.9] - 2026-03-16
 
 ### Added
@@ -77,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial version released.
 
-[unreleased]: https://github.com/openwdl/spectool/compare/v0.1.9...HEAD
+[unreleased]: https://github.com/openwdl/spectool/compare/v0.1.10...HEAD
+[0.1.10]: https://github.com/openwdl/spectool/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/openwdl/spectool/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/openwdl/spectool/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/openwdl/spectool/compare/v0.1.6...v0.1.7
