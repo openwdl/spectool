@@ -192,6 +192,10 @@ pub struct Args {
     #[arg(long, default_value = "Spectool")]
     label: String,
 
+    /// Fail with a non-zero exit code if any tests fail.
+    #[arg(long, default_value_t = false)]
+    strict: bool,
+
     /// Number of CPU cores to use for parallel test execution.
     ///
     /// Set to 1 for sequential execution (default).
@@ -406,6 +410,10 @@ pub fn main(mut args: Args) -> Result<()> {
     let badge_total = badge_passed + badge_failed;
 
     Badge::from_results(&args.label, badge_passed, badge_total).output();
+
+    if args.strict && failed > 0 {
+        bail!("{failed} test(s) failed");
+    }
 
     Ok(())
 }

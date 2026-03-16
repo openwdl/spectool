@@ -76,6 +76,12 @@ spectool test "miniwdl run ~{path} -i ~{input}" --output-selector '.outputs' --r
 spectool test "..." --capabilities optional_inputs,optional_outputs
 ```
 
+**Fail with a non-zero exit code if any tests fail:**
+
+```bash
+spectool test "sprocket run ~{path} ~{input} -t ~{target}" --redirect-stdout --strict
+```
+
 ## Example Workflows
 
 ### Testing Cromwell
