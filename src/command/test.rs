@@ -518,9 +518,10 @@ fn process_test(
     tracing::debug!("executing command `{}`", command);
 
     // Resolve the output file path if provided
-    let output_file = args.output_file.as_ref().map(|path| {
-        PathBuf::from(path.replace("~{target}", target.name()))
-    });
+    let output_file = args
+        .output_file
+        .as_ref()
+        .map(|path| PathBuf::from(path.replace("~{target}", target.name())));
 
     // Execute the test and evaluate the result
     let start_time = std::time::Instant::now();
