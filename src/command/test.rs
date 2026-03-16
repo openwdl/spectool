@@ -140,6 +140,17 @@ pub struct Args {
     #[arg(long, default_value_t = false)]
     redirect_stdout: bool,
 
+    /// Path to read outputs from after the command executes.
+    ///
+    /// Supports `~{target}` substitution for the workflow or task name. When
+    /// set, spectool reads outputs from this file instead of from the default
+    /// `outputs.json` in the working directory.
+    ///
+    /// For example, `--output-file "/tmp/out/index/result/outputs.json"`
+    /// reads from a stable path created by an engine's index feature.
+    #[arg(long, value_name = "PATH")]
+    output_file: Option<String>,
+
     /// Only run tests matching these patterns (comma-separated).
     ///
     /// Patterns are matched as substrings of test names.
@@ -506,6 +517,12 @@ fn process_test(
 
     tracing::debug!("executing command `{}`", command);
 
+    // Resolve the output file path if provided
+    let output_file = args
+        .output_file
+        .as_ref()
+        .map(|path| PathBuf::from(path.replace("~{target}", target.name())));
+
     // Execute the test and evaluate the result
     let start_time = std::time::Instant::now();
     let result = execute_and_evaluate_test(
@@ -514,6 +531,7 @@ fn process_test(
         &root_dir,
         &workdir,
         args.redirect_stdout,
+        output_file.as_deref(),
         args.output_selector.as_deref(),
     );
     let elapsed = start_time.elapsed();
@@ -595,6 +613,7 @@ fn execute_and_evaluate_test(
     root_dir: &Path,
     workdir: &Path,
     redirect_stdout: bool,
+    output_file: Option<&Path>,
     output_selector: Option<&str>,
 ) -> TestResult {
     // Execute the command
@@ -656,7 +675,9 @@ fn execute_and_evaluate_test(
 
     // If we have expected output, validate it
     if let Some(expected_output) = test.output() {
-        let outputs_path = workdir.join("outputs.json");
+        let outputs_path = output_file
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| workdir.join("outputs.json"));
 
         let actual_output = match std::fs::read_to_string(&outputs_path) {
             Ok(content) => content,
