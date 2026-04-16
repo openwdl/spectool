@@ -62,24 +62,24 @@ impl TestTimings {
     ///
     /// # Panics
     ///
-    /// Panics if there are multiple references to any of the inner `Arc`s or if any mutex is poisoned.
+    /// Panics if any mutex is poisoned.
+    //
+    // NOTE: worker closures may still hold `Arc` clones briefly after the
+    // channel closes (params drop in reverse order, so `tx` drops before
+    // `timings`), so `Arc::try_unwrap` would race. `mem::take` under the lock
+    // is safe because workers push to `timings` before sending on `tx`, so
+    // once `rx.into_iter().collect()` returns, every push has completed and
+    // no worker will touch `timings` again — the remaining `Arc` clones are
+    // inert and just waiting to drop.
     fn into_parts(self) -> (Vec<Duration>, Vec<Duration>, Vec<Duration>, Vec<Duration>) {
-        let expected_pass_test_pass = Arc::try_unwrap(self.expected_pass_test_pass)
-            .unwrap()
-            .into_inner()
-            .unwrap();
-        let expected_pass_test_fail = Arc::try_unwrap(self.expected_pass_test_fail)
-            .unwrap()
-            .into_inner()
-            .unwrap();
-        let expected_fail_test_pass = Arc::try_unwrap(self.expected_fail_test_pass)
-            .unwrap()
-            .into_inner()
-            .unwrap();
-        let expected_fail_test_fail = Arc::try_unwrap(self.expected_fail_test_fail)
-            .unwrap()
-            .into_inner()
-            .unwrap();
+        let expected_pass_test_pass =
+            std::mem::take(&mut *self.expected_pass_test_pass.lock().unwrap());
+        let expected_pass_test_fail =
+            std::mem::take(&mut *self.expected_pass_test_fail.lock().unwrap());
+        let expected_fail_test_pass =
+            std::mem::take(&mut *self.expected_fail_test_pass.lock().unwrap());
+        let expected_fail_test_fail =
+            std::mem::take(&mut *self.expected_fail_test_fail.lock().unwrap());
         (
             expected_pass_test_pass,
             expected_pass_test_fail,
