@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-04-16
+
+### Fixed
+
+- Fixes a race condition in `spectool test` where `Arc::try_unwrap` on the
+  timing accumulators could panic because worker closures still held live
+  `Arc` clones when the main thread reached the summary stage.
+
 ## [0.1.10] - 2026-03-16
 
 ### Added
@@ -88,7 +96,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial version released.
 
-[unreleased]: https://github.com/openwdl/spectool/compare/v0.1.10...HEAD
+[unreleased]: https://github.com/openwdl/spectool/compare/v0.1.11...HEAD
+[0.1.11]: https://github.com/openwdl/spectool/compare/v0.1.10...v0.1.11
 [0.1.10]: https://github.com/openwdl/spectool/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/openwdl/spectool/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/openwdl/spectool/compare/v0.1.7...v0.1.8
